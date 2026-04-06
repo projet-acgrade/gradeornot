@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { getCardPrice } from '../../lib/prices'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -49,6 +50,12 @@ function calculateROI(gradedValue: number, rawValue: number, gradingCost: number
   return { profit: Math.round(profit), roi: Math.round(roi), totalCost: Math.round(totalCost) }
 }
 
+function estimateGradedValue(rawValue: number, psaGrade: number) {
+  if (psaGrade >= 9.5) return { PSA10: Math.round(rawValue * 4), PSA9: Math.round(rawValue * 2), PSA8: Math.round(rawValue * 1.3) }
+  if (psaGrade >= 8.5) return { PSA10: Math.round(rawValue * 4), PSA9: Math.round(rawValue * 2), PSA8: Math.round(rawValue * 1.3) }
+  return { PSA10: Math.round(rawValue * 3), PSA9: Math.round(rawValue * 1.5), PSA8: Math.round(rawValue * 1.1) }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { image, mimeType } = await req.json()
@@ -88,11 +95,6 @@ Respond ONLY with valid JSON, no markdown, no explanation outside the JSON:
   "estimatedPSAGrade": 9.5,
   "gradeConfidence": "High | Medium | Low",
   "estimatedRawValue": 45,
-  "estimatedGradedValue": {
-    "PSA10": 180,
-    "PSA9": 95,
-    "PSA8": 60
-  },
   "gradingRecommendation": "GRADE | SKIP | MAYBE",
   "recommendationReason": "Short reason 1-2 sentences",
   "keyIssues": ["any notable issues"],
@@ -115,16 +117,36 @@ Be realistic and conservative. Market values should reflect current TCG market (
       return NextResponse.json({ error: 'No trading card detected. Please upload a clear photo of your card.' }, { status: 400 })
     }
 
-    const gradingAnalysis: Record<string, unknown> = {}
+    // Récupère les vrais prix depuis les APIs
+    const realPrice = await getCardPrice(analysis.cardName, analysis.game, analysis.setName)
 
+    // Si on a un vrai prix, on l'utilise, sinon on garde l'estimation IA
+    const rawValue = realPrice.found && realPrice.prices.market
+      ? Math.round(realPrice.prices.market)
+      : analysis.estimatedRawValue || 50
+
+    const gradedValues = estimateGradedValue(rawValue, analysis.estimatedPSAGrade)
+
+    const enrichedAnalysis = {
+      ...analysis,
+      estimatedRawValue: rawValue,
+      estimatedGradedValue: gradedValues,
+      realPriceFound: realPrice.found,
+      priceSource: realPrice.found ? (analysis.game.toLowerCase().includes('magic') ? 'Scryfall' : 'TCGPlayer') : 'AI Estimate',
+      realPriceData: realPrice.found ? realPrice.prices : null,
+      cardImage: realPrice.image || null,
+    }
+
+    // Calcul ROI pour chaque service
+    const gradingAnalysis: Record<string, unknown> = {}
     for (const [serviceKey, service] of Object.entries(GRADING_SERVICES)) {
       const tiers = service.tiers.map(tier => {
         const shippingCost = service.shipping.toGrader + service.shipping.fromGrader
-        const insuranceCost = Math.round((analysis.estimatedRawValue || 50) * service.shipping.insurance)
+        const insuranceCost = Math.round(rawValue * service.shipping.insurance)
         const shippingTotal = shippingCost + insuranceCost
         const targetGrade = analysis.estimatedPSAGrade >= 9.5 ? 'PSA10' : analysis.estimatedPSAGrade >= 8.5 ? 'PSA9' : 'PSA8'
-        const gradedValue = analysis.estimatedGradedValue?.[targetGrade] || (analysis.estimatedRawValue * 2)
-        const roi = calculateROI(gradedValue, analysis.estimatedRawValue || 50, tier.cost, shippingTotal)
+        const gradedValue = gradedValues[targetGrade as keyof typeof gradedValues]
+        const roi = calculateROI(gradedValue, rawValue, tier.cost, shippingTotal)
         return { ...tier, shippingTotal, gradedValue, ...roi, worthIt: roi.profit > 20 && roi.roi > 30 }
       })
       gradingAnalysis[serviceKey] = { ...service, tiers, bestTier: tiers.find(t => t.worthIt) || tiers[0] }
@@ -135,17 +157,17 @@ Be realistic and conservative. Market values should reflect current TCG market (
         const { createClient } = await import('@supabase/supabase-js')
         const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
         await supabase.from('scans').insert({
-          card_name: analysis.cardName,
-          game: analysis.game,
-          psa_grade_estimate: analysis.estimatedPSAGrade,
-          raw_value: analysis.estimatedRawValue,
-          recommendation: analysis.gradingRecommendation,
-          full_analysis: { analysis, gradingAnalysis }
+          card_name: enrichedAnalysis.cardName,
+          game: enrichedAnalysis.game,
+          psa_grade_estimate: enrichedAnalysis.estimatedPSAGrade,
+          raw_value: rawValue,
+          recommendation: enrichedAnalysis.gradingRecommendation,
+          full_analysis: { analysis: enrichedAnalysis, gradingAnalysis }
         })
       } catch { /* Supabase optional */ }
     }
 
-    return NextResponse.json({ analysis, gradingAnalysis })
+    return NextResponse.json({ analysis: enrichedAnalysis, gradingAnalysis })
 
   } catch (err: unknown) {
     console.error('Analysis error:', err)

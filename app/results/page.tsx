@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Clock, Package, Shield, ChevronDown, ChevronUp } from 'lucide-react'
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Clock, Package, Shield, ChevronDown, ChevronUp, Database } from 'lucide-react'
 
 interface Tier {
   name: string
@@ -43,6 +43,10 @@ interface Analysis {
   gradingRecommendation: 'GRADE' | 'SKIP' | 'MAYBE'
   recommendationReason: string
   keyIssues: string[]
+  realPriceFound: boolean
+  priceSource: string
+  realPriceData: { low: number | null; mid: number | null; high: number | null; market: number | null } | null
+  cardImage: string | null
 }
 
 interface ResultData {
@@ -76,7 +80,7 @@ function ConditionBadge({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
       <div style={{ fontSize: 10, color: '#666', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>{label.toUpperCase()}</div>
-      <div style={{ fontSize: 13, color, fontFamily: 'var(--font-body)', fontWeight: 500 }}>{value}</div>
+      <div style={{ fontSize: 13, color, fontWeight: 500 }}>{value}</div>
     </div>
   )
 }
@@ -178,6 +182,7 @@ export default function ResultsPage() {
   const { analysis, gradingAnalysis, imagePreview } = data
   const verdict = VERDICT_CONFIG[analysis.gradingRecommendation]
   const VerdictIcon = verdict.icon
+  const displayImage = analysis.cardImage || imagePreview
 
   return (
     <div style={{ minHeight: '100vh', background: '#0A0A0B' }}>
@@ -190,15 +195,38 @@ export default function ResultsPage() {
         </button>
         <div style={{ height: 20, width: 1, background: 'rgba(255,255,255,0.1)' }} />
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#555', letterSpacing: 1 }}>ANALYSIS REPORT</span>
+        {analysis.realPriceFound && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', borderRadius: 20, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
+            <Database size={11} color="#22C55E" />
+            <span style={{ fontSize: 11, color: '#22C55E', fontFamily: 'var(--font-mono)', letterSpacing: 0.5 }}>LIVE · {analysis.priceSource}</span>
+          </div>
+        )}
       </nav>
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 32px 80px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 32, marginBottom: 48 }}>
           <div>
             <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(245,183,49,0.2)', background: '#111113' }}>
-              <img src={imagePreview} alt={analysis.cardName} style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 320 }} />
+              <img src={displayImage} alt={analysis.cardName} style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 380 }} />
             </div>
+            {analysis.realPriceFound && analysis.realPriceData && (
+              <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 12, background: '#111113', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize: 10, color: '#22C55E', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 10 }}>LIVE MARKET DATA</div>
+                {[
+                  { label: 'Low', value: analysis.realPriceData.low },
+                  { label: 'Mid', value: analysis.realPriceData.mid },
+                  { label: 'Market', value: analysis.realPriceData.market },
+                  { label: 'High', value: analysis.realPriceData.high },
+                ].map((p, i) => p.value && (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                    <span style={{ fontSize: 12, color: '#555' }}>{p.label}</span>
+                    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: '#E8E8EC' }}>${p.value.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <div>
               <div style={{ fontSize: 12, color: '#F5B731', fontFamily: 'var(--font-mono)', letterSpacing: 2, marginBottom: 8 }}>
@@ -211,6 +239,7 @@ export default function ResultsPage() {
                 {analysis.setName}{analysis.year ? ` · ${analysis.year}` : ''} · {analysis.language}
               </div>
             </div>
+
             <div style={{ padding: '20px', borderRadius: 16, background: '#111113', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
@@ -225,18 +254,24 @@ export default function ResultsPage() {
               </div>
               <GradeBar value={analysis.estimatedPSAGrade} />
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               {[
-                { label: 'RAW VALUE', value: `$${analysis.estimatedRawValue}` },
-                { label: 'PSA 10', value: `$${analysis.estimatedGradedValue.PSA10}` },
-                { label: 'PSA 9', value: `$${analysis.estimatedGradedValue.PSA9}` },
+                { label: analysis.realPriceFound ? 'MARKET PRICE' : 'RAW VALUE', value: `$${analysis.estimatedRawValue}`, highlight: analysis.realPriceFound },
+                { label: 'PSA 10 EST.', value: `$${analysis.estimatedGradedValue.PSA10}`, highlight: false },
+                { label: 'PSA 9 EST.', value: `$${analysis.estimatedGradedValue.PSA9}`, highlight: false },
               ].map((v, i) => (
-                <div key={i} style={{ padding: '16px', borderRadius: 12, background: '#111113', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 6 }}>{v.label}</div>
+                <div key={i} style={{
+                  padding: '16px', borderRadius: 12, textAlign: 'center',
+                  background: '#111113',
+                  border: v.highlight ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <div style={{ fontSize: 10, color: v.highlight ? '#22C55E' : '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 6 }}>{v.label}</div>
                   <div style={{ fontSize: 22, fontFamily: 'var(--font-mono)', color: '#E8E8EC', fontWeight: 700 }}>{v.value}</div>
                 </div>
               ))}
             </div>
+
             <div style={{ padding: '24px', borderRadius: 16, background: verdict.bg, border: `2px solid ${verdict.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                 <div style={{
