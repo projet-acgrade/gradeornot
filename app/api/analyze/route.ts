@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
 
     const response = await client.messages.create({
-      model: 'claude-opus-4-5-20251101',
+      model: 'claude-opus-4-6',
       max_tokens: 2000,
       messages: [{
         role: 'user',
