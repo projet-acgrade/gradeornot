@@ -1,56 +1,96 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, Zap, TrendingUp, Shield, ChevronRight, Camera } from 'lucide-react'
+import { Zap, TrendingUp, Shield, ChevronRight, Camera } from 'lucide-react'
+import CardScanner from './components/CardScanner'
+import CardSuggestions from './components/CardSuggestions'
+
+interface CardSuggestion {
+  cardName: string
+  setName: string
+  year: string
+  rarity: string
+  language: string
+  confidence: number
+  estimatedRawValue: number
+}
 
 export default function Home() {
-  const [dragging, setDragging] = useState(false)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [imageData, setImageData] = useState<{ base64: string; mimeType: string; preview: string } | null>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [suggestions, setSuggestions] = useState<CardSuggestion[]>([])
   const router = useRouter()
 
-  const handleFile = (f: File) => {
-    if (!f.type.startsWith('image/')) {
-      setError('Please upload an image file.')
-      return
-    }
-    setFile(f)
+  const handleImageReady = (base64: string, mimeType: string, preview: string) => {
+    setImageData({ base64, mimeType, preview })
     setError(null)
-    const reader = new FileReader()
-    reader.onload = (e) => setPreview(e.target?.result as string)
-    reader.readAsDataURL(f)
+    setSuggestions([])
   }
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDragging(false)
-    const f = e.dataTransfer.files[0]
-    if (f) handleFile(f)
-  }
-
-  const handleAnalyze = async () => {
-    if (!file || !preview) return
+  const handleAnalyze = async (overrideCard?: CardSuggestion) => {
+    if (!imageData) return
     setUploading(true)
     setError(null)
+    setSuggestions([])
+
     try {
-      const base64 = preview.split(',')[1]
       const res = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64, mimeType: file.type }),
+        body: JSON.stringify({
+          image: imageData.base64,
+          mimeType: imageData.mimeType,
+          overrideCard,
+        }),
       })
+
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Analysis failed')
       }
+
       const data = await res.json()
-      sessionStorage.setItem('gradeornot_result', JSON.stringify({ ...data, imagePreview: preview }))
+
+      if (data.suggestions && data.suggestions.length > 1) {
+        setSuggestions(data.suggestions)
+        setUploading(false)
+        return
+      }
+
+      sessionStorage.setItem('gradeornot_result', JSON.stringify({ ...data, imagePreview: imageData.preview }))
       router.push('/results')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Try again.')
+      setUploading(false)
+    }
+  }
+
+  const handleSelectSuggestion = (suggestion: CardSuggestion) => {
+    setSuggestions([])
+    handleAnalyze(suggestion)
+  }
+
+  const handleManualSearch = async (query: string) => {
+    if (!query.trim() || !imageData) return
+    setSuggestions([])
+    setUploading(true)
+    try {
+      const res = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: imageData.base64,
+          mimeType: imageData.mimeType,
+          manualSearch: query,
+        }),
+      })
+      if (!res.ok) throw new Error('Search failed')
+      const data = await res.json()
+      sessionStorage.setItem('gradeornot_result', JSON.stringify({ ...data, imagePreview: imageData.preview }))
+      router.push('/results')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Search failed')
       setUploading(false)
     }
   }
@@ -117,88 +157,48 @@ export default function Home() {
         </div>
 
         <div style={{ maxWidth: 560, margin: '0 auto 80px' }}>
-          {!preview ? (
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => fileRef.current?.click()}
-              style={{
-                border: `2px dashed ${dragging ? 'rgba(245,183,49,0.6)' : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 20, padding: '60px 40px', textAlign: 'center', cursor: 'pointer',
-                background: dragging ? 'rgba(245,183,49,0.03)' : 'rgba(255,255,255,0.02)',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{
-                width: 56, height: 56, borderRadius: 16, margin: '0 auto 20px',
-                background: 'rgba(245,183,49,0.1)', border: '1px solid rgba(245,183,49,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Upload size={24} color="#F5B731" />
+          <CardScanner onImageReady={handleImageReady} />
+
+          {imageData && !uploading && suggestions.length === 0 && (
+            <button onClick={() => handleAnalyze()} style={{
+              marginTop: 16, width: '100%', padding: '16px', borderRadius: 12,
+              background: 'linear-gradient(135deg, #F5B731, #D4981A)',
+              border: 'none', color: '#0A0A0B', fontSize: 15, fontWeight: 700,
+              cursor: 'pointer', fontFamily: 'var(--font-body)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+            }}>
+              <Zap size={18} /> Analyze this card
+            </button>
+          )}
+
+          {uploading && (
+            <div style={{
+              marginTop: 16, padding: '20px', borderRadius: 12,
+              background: '#111113', border: '1px solid rgba(245,183,49,0.2)',
+              display: 'flex', alignItems: 'center', gap: 16
+            }}>
+              <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+                <div style={{
+                  position: 'absolute', inset: 0, borderRadius: '50%',
+                  border: '2px solid transparent', borderTopColor: '#F5B731',
+                  animation: 'spin 1s linear infinite'
+                }} />
+                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                <Zap size={16} color="#F5B731" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
               </div>
-              <p style={{ fontSize: 16, fontWeight: 500, color: '#E8E8EC', margin: '0 0 8px', fontFamily: 'var(--font-body)' }}>
-                Drop your card photo here
-              </p>
-              <p style={{ fontSize: 13, color: '#666', margin: 0, fontFamily: 'var(--font-body)' }}>
-                or click to browse · JPG, PNG, WEBP
-              </p>
-              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
-                onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
-            </div>
-          ) : (
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                borderRadius: 20, overflow: 'hidden', position: 'relative',
-                border: '1px solid rgba(245,183,49,0.2)', background: '#111113'
-              }}>
-                <img src={preview} alt="Card preview"
-                  style={{ width: '100%', maxHeight: 400, objectFit: 'contain', display: 'block' }} />
-                {uploading && (
-                  <div style={{
-                    position: 'absolute', inset: 0, background: 'rgba(10,10,11,0.85)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16
-                  }}>
-                    <div style={{ position: 'relative', width: 80, height: 80 }}>
-                      <div style={{
-                        position: 'absolute', inset: 0, borderRadius: '50%',
-                        border: '2px solid transparent', borderTopColor: '#F5B731',
-                        animation: 'spin 1s linear infinite'
-                      }} />
-                      <Zap size={28} color="#F5B731" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: '#F5B731', margin: '0 0 4px', letterSpacing: 1 }}>
-                        ANALYZING CARD
-                      </p>
-                      <p style={{ fontSize: 12, color: '#666', margin: 0 }}>Checking condition, grades & market value...</p>
-                    </div>
-                  </div>
-                )}
+              <div>
+                <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#F5B731', margin: '0 0 2px', letterSpacing: 1 }}>ANALYZING CARD</p>
+                <p style={{ fontSize: 12, color: '#666', margin: 0 }}>Identifying · Checking condition · Fetching prices...</p>
               </div>
-              {!uploading && (
-                <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                  <button onClick={() => { setPreview(null); setFile(null) }}
-                    style={{
-                      flex: 1, padding: '14px', borderRadius: 12,
-                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#888', fontSize: 14, cursor: 'pointer', fontFamily: 'var(--font-body)'
-                    }}>
-                    Change photo
-                  </button>
-                  <button onClick={handleAnalyze}
-                    style={{
-                      flex: 2, padding: '14px', borderRadius: 12,
-                      background: 'linear-gradient(135deg, #F5B731, #D4981A)',
-                      border: 'none', color: '#0A0A0B', fontSize: 14, fontWeight: 700,
-                      cursor: 'pointer', fontFamily: 'var(--font-body)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
-                    }}>
-                    <Zap size={16} /> Analyze this card
-                  </button>
-                </div>
-              )}
             </div>
+          )}
+
+          {suggestions.length > 0 && (
+            <CardSuggestions
+              suggestions={suggestions}
+              onSelect={handleSelectSuggestion}
+              onManualSearch={handleManualSearch}
+            />
           )}
 
           {error && (
@@ -217,8 +217,8 @@ export default function Home() {
           paddingTop: 40, borderTop: '1px solid rgba(255,255,255,0.06)'
         }}>
           {[
-            { icon: <Camera size={14} />, text: 'AI condition analysis' },
-            { icon: <TrendingUp size={14} />, text: 'Real market prices' },
+            { icon: <Camera size={14} />, text: 'Camera & photo scan' },
+            { icon: <TrendingUp size={14} />, text: 'Live TCGPlayer prices' },
             { icon: <Shield size={14} />, text: 'PSA · BGS · CGC costs' },
             { icon: <ChevronRight size={14} />, text: 'Instant ROI verdict' },
           ].map((f, i) => (
