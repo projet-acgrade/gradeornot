@@ -105,8 +105,8 @@ async function getTrends(supabase: ReturnType<typeof createClient>, key: string,
 
     if (!history || history.length === 0) return { days7: null, days30: null }
 
-    const price7dAgo = history.find(h => h.recorded_at <= day7ago)?.raw_avg || null
-    const price30dAgo = history.find(h => h.recorded_at <= day30ago)?.raw_avg || null
+    const price7dAgo = (history as {raw_avg: number; recorded_at: string}[]).find(h => h.recorded_at <= day7ago)?.raw_avg || null
+    const price30dAgo = (history as {raw_avg: number; recorded_at: string}[]).find(h => h.recorded_at <= day30ago)?.raw_avg || null
 
     return {
       days7: calcTrend(currentAvg, price7dAgo),
