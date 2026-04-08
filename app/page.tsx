@@ -22,6 +22,9 @@ interface Profile {
   total_scans: number
 }
 
+const FREE_SCANS_LIMIT = 5
+const LOCAL_SCANS_KEY = 'gradeornot_free_scans'
+
 export default function Home() {
   const [imageData, setImageData] = useState<{ base64: string; mimeType: string; preview: string } | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -29,9 +32,13 @@ export default function Home() {
   const [suggestions, setSuggestions] = useState<CardSuggestion[]>([])
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [freeScansUsed, setFreeScansUsed] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
+    const used = parseInt(localStorage.getItem(LOCAL_SCANS_KEY) || '0')
+    setFreeScansUsed(used)
+
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user)
       if (data.user) fetchProfile(data.user.id)
@@ -61,16 +68,21 @@ export default function Home() {
     setSuggestions([])
   }
 
+  const getRemainingScans = () => {
+    if (user && profile) return profile.scan_credits
+    return FREE_SCANS_LIMIT - freeScansUsed
+  }
+
   const handleAnalyze = async (overrideCard?: CardSuggestion) => {
     if (!imageData) return
 
-    if (!user) {
-      router.push('/login')
+    // Vérif crédits
+    if (user && profile && profile.scan_credits <= 0) {
+      setError('No scans left. Purchase more credits in your dashboard.')
       return
     }
-
-    if (profile && profile.scan_credits <= 0) {
-      setError('No scans left. Purchase more credits to continue.')
+    if (!user && freeScansUsed >= FREE_SCANS_LIMIT) {
+      setError('You have used your 5 free scans. Sign in to get more.')
       return
     }
 
@@ -86,7 +98,7 @@ export default function Home() {
           image: imageData.base64,
           mimeType: imageData.mimeType,
           overrideCard,
-          userId: user.id,
+          userId: user?.id,
         }),
       })
 
@@ -103,7 +115,15 @@ export default function Home() {
         return
       }
 
-      if (profile) setProfile({ ...profile, scan_credits: profile.scan_credits - 1, total_scans: profile.total_scans + 1 })
+      // Incrémente les compteurs
+      if (!user) {
+        const newCount = freeScansUsed + 1
+        localStorage.setItem(LOCAL_SCANS_KEY, newCount.toString())
+        setFreeScansUsed(newCount)
+      } else if (profile) {
+        setProfile({ ...profile, scan_credits: profile.scan_credits - 1, total_scans: profile.total_scans + 1 })
+      }
+
       sessionStorage.setItem('gradeornot_result', JSON.stringify({ ...data, imagePreview: imageData.preview }))
       router.push('/results')
     } catch (err: unknown) {
@@ -137,6 +157,8 @@ export default function Home() {
     }
   }
 
+  const remaining = getRemainingScans()
+
   return (
     <div style={{ minHeight: '100vh', background: '#0A0A0B' }}>
       <nav style={{
@@ -151,16 +173,16 @@ export default function Home() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, background: remaining > 2 ? 'rgba(245,183,49,0.08)' : 'rgba(239,68,68,0.08)', border: `1px solid ${remaining > 2 ? 'rgba(245,183,49,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+            <Zap size={12} color={remaining > 2 ? '#F5B731' : '#EF4444'} />
+            <span style={{ fontSize: 12, color: remaining > 2 ? '#F5B731' : '#EF4444', fontFamily: 'var(--font-mono)' }}>
+              {remaining} scan{remaining !== 1 ? 's' : ''} left
+            </span>
+          </div>
+
           {user ? (
             <>
-              {profile && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, background: 'rgba(245,183,49,0.08)', border: '1px solid rgba(245,183,49,0.2)' }}>
-                  <Zap size={12} color="#F5B731" />
-                  <span style={{ fontSize: 12, color: '#F5B731', fontFamily: 'var(--font-mono)' }}>{profile.scan_credits} scans left</span>
-                </div>
-              )}
-              <a href="/dashboard" style={{ fontSize: 13, color: "#888", textDecoration: "none", fontFamily: "var(--font-body)" }}>Dashboard</a>
-              <a href="/history" style={{ fontSize: 13, color: '#888', textDecoration: 'none', fontFamily: 'var(--font-body)' }}>History</a>
+              <a href="/dashboard" style={{ fontSize: 13, color: '#888', textDecoration: 'none', fontFamily: 'var(--font-body)' }}>Dashboard</a>
               <button onClick={handleSignOut} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#888', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                 <LogOut size={13} /> Sign out
               </button>
@@ -194,14 +216,14 @@ export default function Home() {
           <CardScanner onImageReady={handleImageReady} />
 
           {imageData && !uploading && suggestions.length === 0 && (
-            <button onClick={() => handleAnalyze()} style={{
+            <button onClick={() => handleAnalyze()} disabled={remaining <= 0} style={{
               marginTop: 16, width: '100%', padding: '16px', borderRadius: 12,
-              background: 'linear-gradient(135deg, #F5B731, #D4981A)',
-              border: 'none', color: '#0A0A0B', fontSize: 15, fontWeight: 700,
-              cursor: 'pointer', fontFamily: 'var(--font-body)',
+              background: remaining > 0 ? 'linear-gradient(135deg, #F5B731, #D4981A)' : 'rgba(255,255,255,0.06)',
+              border: 'none', color: remaining > 0 ? '#0A0A0B' : '#555', fontSize: 15, fontWeight: 700,
+              cursor: remaining > 0 ? 'pointer' : 'default', fontFamily: 'var(--font-body)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
             }}>
-              <Zap size={18} /> {user ? 'Analyze this card' : 'Sign in to analyze'}
+              <Zap size={18} /> Analyze this card
             </button>
           )}
 
@@ -226,6 +248,11 @@ export default function Home() {
           {error && (
             <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', fontSize: 13, color: '#FC8181', fontFamily: 'var(--font-body)' }}>
               {error}
+              {!user && freeScansUsed >= FREE_SCANS_LIMIT && (
+                <button onClick={() => router.push('/login')} style={{ display: 'block', marginTop: 10, padding: '8px 16px', borderRadius: 8, background: 'rgba(245,183,49,0.15)', border: '1px solid rgba(245,183,49,0.3)', color: '#F5B731', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                  Sign in to continue →
+                </button>
+              )}
             </div>
           )}
         </div>
