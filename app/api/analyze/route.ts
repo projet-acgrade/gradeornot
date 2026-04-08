@@ -74,16 +74,48 @@ function buildGradingAnalysis(rawValue: number, psaGrade: number) {
   return { gradingAnalysis, gradedValues }
 }
 
+// Convertit les labels de condition en scores numériques
+function conditionToScore(value: string, type: 'centering' | 'surfaces' | 'corners' | 'edges'): number {
+  if (type === 'centering') {
+    if (value.includes('Perfect')) return 10
+    if (value.includes('Good')) return 8
+    if (value.includes('Off')) return 6
+    if (value.includes('Poor')) return 4
+    return 7
+  }
+  if (type === 'surfaces') {
+    if (value.includes('Clean')) return 10
+    if (value.includes('Minor')) return 8
+    if (value.includes('Scratches')) return 5
+    if (value.includes('Heavy')) return 3
+    return 7
+  }
+  if (type === 'corners') {
+    if (value.includes('Sharp')) return 10
+    if (value.includes('Light')) return 8
+    if (value.includes('Rounded')) return 5
+    if (value.includes('Heavy')) return 3
+    return 7
+  }
+  if (type === 'edges') {
+    if (value.includes('Clean')) return 10
+    if (value.includes('Light')) return 8
+    if (value.includes('Chipped')) return 5
+    if (value.includes('Heavy')) return 3
+    return 7
+  }
+  return 7
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { image, mimeType, overrideCard, manualSearch } = await req.json()
+    const { image, mimeType, overrideCard, manualSearch, userId } = await req.json()
     if (!image) return NextResponse.json({ error: 'No image provided' }, { status: 400 })
     if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
 
     let analysis
 
     if (overrideCard) {
-      // User selected a suggestion — use it directly with condition analysis only
       const condRes = await client.messages.create({
         model: 'claude-opus-4-6',
         max_tokens: 1000,
@@ -105,7 +137,7 @@ Respond ONLY with valid JSON:
     "edges": "Clean | Light wear | Chipped | Heavy wear"
   },
   "estimatedPSAGrade": 8.5,
-  "gradeConfidence": "High | Medium | Low",
+  "gradeConfidence": 75,
   "gradingRecommendation": "GRADE | SKIP | MAYBE",
   "recommendationReason": "1-2 sentences",
   "keyIssues": []
@@ -119,7 +151,6 @@ Respond ONLY with valid JSON:
       analysis = { ...overrideCard, ...condData, isCardDetected: true }
 
     } else if (manualSearch) {
-      // Manual search override
       const searchRes = await client.messages.create({
         model: 'claude-opus-4-6',
         max_tokens: 1500,
@@ -147,7 +178,7 @@ Respond ONLY with valid JSON:
     "edges": "Clean | Light wear | Chipped | Heavy wear"
   },
   "estimatedPSAGrade": 8.5,
-  "gradeConfidence": "High | Medium | Low",
+  "gradeConfidence": 75,
   "estimatedRawValue": 50,
   "gradingRecommendation": "GRADE | SKIP | MAYBE",
   "recommendationReason": "1-2 sentences",
@@ -162,7 +193,6 @@ Respond ONLY with valid JSON:
       analysis = JSON.parse(searchText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim())
 
     } else {
-      // Full auto identification
       const response = await client.messages.create({
         model: 'claude-opus-4-6',
         max_tokens: 2500,
@@ -172,21 +202,18 @@ Respond ONLY with valid JSON:
             { type: 'image', source: { type: 'base64', media_type: mimeType, data: image } },
             {
               type: 'text',
-              text: `You are a professional TCG card identifier and grader. Analyze this card image carefully.
+              text: `You are a professional TCG card grader. Analyze this card image with extreme precision.
 
-If you can identify the card with HIGH confidence, respond with a single card object.
-If there is ambiguity (multiple possible versions, sets, or languages), provide up to 3 suggestions.
+If high confidence, respond FORMAT A. If ambiguous, respond FORMAT B.
 
-Respond ONLY with valid JSON in one of these two formats:
-
-FORMAT A - Single card (high confidence):
+FORMAT A:
 {
   "cardName": "exact name",
   "game": "Pokemon | Magic: The Gathering | One Piece | Yu-Gi-Oh | Lorcana | Other",
   "setName": "set name",
-  "setNumber": "card number if visible e.g. 4/102",
+  "setNumber": "card number e.g. 4/102",
   "year": "year",
-  "rarity": "Holo Rare | Ultra Rare | Common | etc",
+  "rarity": "rarity",
   "language": "English | Japanese | French | etc",
   "version": "1st Edition | Unlimited | Shadow | Reverse Holo | etc",
   "condition": {
@@ -197,7 +224,7 @@ FORMAT A - Single card (high confidence):
     "edges": "Clean | Light wear | Chipped | Heavy wear"
   },
   "estimatedPSAGrade": 8.5,
-  "gradeConfidence": "High | Medium | Low",
+  "gradeConfidence": 75,
   "estimatedRawValue": 50,
   "gradingRecommendation": "GRADE | SKIP | MAYBE",
   "recommendationReason": "1-2 sentences",
@@ -206,25 +233,19 @@ FORMAT A - Single card (high confidence):
   "ambiguous": false
 }
 
-FORMAT B - Multiple suggestions (ambiguous):
+FORMAT B:
 {
   "isCardDetected": true,
   "ambiguous": true,
   "suggestions": [
-    {
-      "cardName": "name",
-      "setName": "set",
-      "year": "year",
-      "rarity": "rarity",
-      "language": "language",
-      "confidence": 85,
-      "estimatedRawValue": 45
-    }
+    { "cardName": "name", "setName": "set", "year": "year", "rarity": "rarity", "language": "language", "confidence": 85, "estimatedRawValue": 45 }
   ]
 }
 
-If no card detected: { "isCardDetected": false }
-Be conservative with grades. Be precise with card identification including version and set number.`
+If no card: { "isCardDetected": false }
+
+IMPORTANT: gradeConfidence must be a NUMBER 0-100 (not "High"/"Medium"/"Low").
+Be conservative with grades. Be precise with card identification.`
             }
           ]
         }]
@@ -238,12 +259,25 @@ Be conservative with grades. Be precise with card identification including versi
       return NextResponse.json({ error: 'No trading card detected. Please upload a clear photo.' }, { status: 400 })
     }
 
-    // Return suggestions if ambiguous
     if (analysis.ambiguous && analysis.suggestions) {
       return NextResponse.json({ suggestions: analysis.suggestions })
     }
 
-    // Fetch real market price
+    // Calcule les scores numériques par critère
+    const criteriaScores = {
+      centering: conditionToScore(analysis.condition?.centering || '', 'centering'),
+      surfaces: conditionToScore(analysis.condition?.surfaces || '', 'surfaces'),
+      corners: conditionToScore(analysis.condition?.corners || '', 'corners'),
+      edges: conditionToScore(analysis.condition?.edges || '', 'edges'),
+    }
+
+    // Normalise gradeConfidence en nombre
+    let confidence = analysis.gradeConfidence
+    if (typeof confidence === 'string') {
+      confidence = confidence === 'High' ? 80 : confidence === 'Medium' ? 60 : 40
+    }
+    confidence = Math.min(100, Math.max(0, Number(confidence) || 60))
+
     const realPrice = await getCardPrice(analysis.cardName, analysis.game, analysis.setName)
     const rawValue = realPrice.found && realPrice.prices.market
       ? Math.round(realPrice.prices.market)
@@ -255,6 +289,8 @@ Be conservative with grades. Be precise with card identification including versi
       ...analysis,
       estimatedRawValue: rawValue,
       estimatedGradedValue: gradedValues,
+      criteriaScores,
+      gradeConfidence: confidence,
       realPriceFound: realPrice.found,
       priceSource: realPrice.found
         ? (analysis.game?.toLowerCase().includes('magic') ? 'Scryfall' : 'TCGPlayer')
@@ -263,7 +299,6 @@ Be conservative with grades. Be precise with card identification including versi
       cardImage: realPrice.image || null,
     }
 
-    // Save to Supabase
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
       try {
         const { createClient } = await import('@supabase/supabase-js')

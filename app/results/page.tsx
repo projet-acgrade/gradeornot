@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Clock, Package, Shield, ChevronDown, ChevronUp, Database } from 'lucide-react'
+import GradeAnalysis from '../components/GradeAnalysis'
 
 interface Tier {
   name: string
@@ -29,6 +30,8 @@ interface Analysis {
   year: string
   rarity: string
   language: string
+  version: string
+  setNumber: string
   condition: {
     overall: string
     centering: string
@@ -36,8 +39,14 @@ interface Analysis {
     corners: string
     edges: string
   }
+  criteriaScores: {
+    centering: number
+    surfaces: number
+    corners: number
+    edges: number
+  }
   estimatedPSAGrade: number
-  gradeConfidence: string
+  gradeConfidence: number
   estimatedRawValue: number
   estimatedGradedValue: { PSA10: number; PSA9: number; PSA8: number }
   gradingRecommendation: 'GRADE' | 'SKIP' | 'MAYBE'
@@ -59,30 +68,6 @@ const VERDICT_CONFIG = {
   GRADE: { label: 'GRADE IT', color: '#22C55E', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)', icon: TrendingUp },
   SKIP: { label: 'SKIP IT', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', icon: TrendingDown },
   MAYBE: { label: 'BORDERLINE', color: '#F5B731', bg: 'rgba(245,183,49,0.1)', border: 'rgba(245,183,49,0.3)', icon: Minus },
-}
-
-function GradeBar({ value }: { value: number }) {
-  const pct = (value / 10) * 100
-  const color = value >= 9 ? '#22C55E' : value >= 7 ? '#F5B731' : '#EF4444'
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 3 }} />
-      </div>
-      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color, minWidth: 28 }}>{value}</span>
-    </div>
-  )
-}
-
-function ConditionBadge({ label, value }: { label: string; value: string }) {
-  const isGood = ['Perfect', 'Good', 'Clean', 'Sharp', 'Mint', 'Near Mint'].some(g => value.includes(g))
-  const color = isGood ? '#22C55E' : '#F5B731'
-  return (
-    <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <div style={{ fontSize: 10, color: '#666', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>{label.toUpperCase()}</div>
-      <div style={{ fontSize: 13, color, fontWeight: 500 }}>{value}</div>
-    </div>
-  )
 }
 
 function ServiceCard({ service }: { service: GradingService }) {
@@ -187,10 +172,7 @@ export default function ResultsPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#0A0A0B' }}>
       <nav style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <button onClick={() => router.push('/')} style={{
-          display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none',
-          color: '#888', cursor: 'pointer', fontSize: 14, fontFamily: 'var(--font-body)'
-        }}>
+        <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 14, fontFamily: 'var(--font-body)' }}>
           <ArrowLeft size={16} /> Back
         </button>
         <div style={{ height: 20, width: 1, background: 'rgba(255,255,255,0.1)' }} />
@@ -204,10 +186,12 @@ export default function ResultsPage() {
       </nav>
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 32px 80px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 32, marginBottom: 48 }}>
+
+        {/* Top: card image + info + verdict */}
+        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 32, marginBottom: 48 }}>
           <div>
             <div style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(245,183,49,0.2)', background: '#111113' }}>
-              <img src={displayImage} alt={analysis.cardName} style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 380 }} />
+              <img src={displayImage} alt={analysis.cardName} style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 360 }} />
             </div>
             {analysis.realPriceFound && analysis.realPriceData && (
               <div style={{ marginTop: 12, padding: '14px 16px', borderRadius: 12, background: '#111113', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -217,10 +201,10 @@ export default function ResultsPage() {
                   { label: 'Mid', value: analysis.realPriceData.mid },
                   { label: 'Market', value: analysis.realPriceData.market },
                   { label: 'High', value: analysis.realPriceData.high },
-                ].map((p, i) => p.value && (
+                ].filter(p => p.value).map((p, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                     <span style={{ fontSize: 12, color: '#555' }}>{p.label}</span>
-                    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: '#E8E8EC' }}>${p.value.toFixed(2)}</span>
+                    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: '#E8E8EC' }}>${p.value!.toFixed(2)}</span>
                   </div>
                 ))}
               </div>
@@ -236,10 +220,11 @@ export default function ResultsPage() {
                 {analysis.cardName}
               </h1>
               <div style={{ fontSize: 14, color: '#666' }}>
-                {analysis.setName}{analysis.year ? ` · ${analysis.year}` : ''} · {analysis.language}
+                {analysis.setName}{analysis.setNumber ? ` · ${analysis.setNumber}` : ''}{analysis.year ? ` · ${analysis.year}` : ''}{analysis.version ? ` · ${analysis.version}` : ''} · {analysis.language}
               </div>
             </div>
 
+            {/* Grade + confidence */}
             <div style={{ padding: '20px', borderRadius: 16, background: '#111113', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <div>
@@ -248,30 +233,33 @@ export default function ResultsPage() {
                     {analysis.estimatedPSAGrade}
                   </div>
                 </div>
-                <div style={{ padding: '6px 14px', borderRadius: 20, background: 'rgba(245,183,49,0.1)', border: '1px solid rgba(245,183,49,0.2)', fontSize: 12, color: '#F5B731', fontFamily: 'var(--font-mono)' }}>
-                  {analysis.gradeConfidence}
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>CONFIDENCE</div>
+                  <div style={{ fontSize: 28, fontFamily: 'var(--font-mono)', color: analysis.gradeConfidence >= 80 ? '#22C55E' : '#F5B731', fontWeight: 700 }}>
+                    {analysis.gradeConfidence}%
+                  </div>
                 </div>
               </div>
-              <GradeBar value={analysis.estimatedPSAGrade} />
+              <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ width: `${(analysis.estimatedPSAGrade / 10) * 100}%`, height: '100%', background: analysis.estimatedPSAGrade >= 9 ? '#22C55E' : '#F5B731', borderRadius: 3 }} />
+              </div>
             </div>
 
+            {/* Values */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               {[
                 { label: analysis.realPriceFound ? 'MARKET PRICE' : 'RAW VALUE', value: `$${analysis.estimatedRawValue}`, highlight: analysis.realPriceFound },
                 { label: 'PSA 10 EST.', value: `$${analysis.estimatedGradedValue.PSA10}`, highlight: false },
                 { label: 'PSA 9 EST.', value: `$${analysis.estimatedGradedValue.PSA9}`, highlight: false },
               ].map((v, i) => (
-                <div key={i} style={{
-                  padding: '16px', borderRadius: 12, textAlign: 'center',
-                  background: '#111113',
-                  border: v.highlight ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.06)'
-                }}>
+                <div key={i} style={{ padding: '16px', borderRadius: 12, textAlign: 'center', background: '#111113', border: v.highlight ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
                   <div style={{ fontSize: 10, color: v.highlight ? '#22C55E' : '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 6 }}>{v.label}</div>
                   <div style={{ fontSize: 22, fontFamily: 'var(--font-mono)', color: '#E8E8EC', fontWeight: 700 }}>{v.value}</div>
                 </div>
               ))}
             </div>
 
+            {/* Verdict */}
             <div style={{ padding: '24px', borderRadius: 16, background: verdict.bg, border: `2px solid ${verdict.border}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
                 <div style={{
@@ -291,27 +279,31 @@ export default function ResultsPage() {
           </div>
         </div>
 
-        <div style={{ marginBottom: 48 }}>
-          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: 3, color: '#E8E8EC', marginBottom: 20 }}>CONDITION BREAKDOWN</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
-            <ConditionBadge label="Overall" value={analysis.condition.overall} />
-            <ConditionBadge label="Centering" value={analysis.condition.centering} />
-            <ConditionBadge label="Surfaces" value={analysis.condition.surfaces} />
-            <ConditionBadge label="Corners" value={analysis.condition.corners} />
-            <ConditionBadge label="Edges" value={analysis.condition.edges} />
+        {/* Grade Analysis — Chantier 2 */}
+        {analysis.criteriaScores && (
+          <div style={{ marginBottom: 48 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: 3, color: '#E8E8EC', marginBottom: 24 }}>VISUAL GRADE ANALYSIS</h2>
+            <GradeAnalysis
+              criteria={analysis.criteriaScores}
+              psaGrade={analysis.estimatedPSAGrade}
+              confidence={analysis.gradeConfidence}
+            />
           </div>
-          {analysis.keyIssues && analysis.keyIssues.length > 0 && (
-            <div style={{ padding: '16px 20px', borderRadius: 12, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
-              <div style={{ fontSize: 11, color: '#EF4444', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>KEY ISSUES DETECTED</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {analysis.keyIssues.map((issue, i) => (
-                  <span key={i} style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, background: 'rgba(239,68,68,0.1)', color: '#FC8181' }}>{issue}</span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        )}
 
+        {/* Key issues */}
+        {analysis.keyIssues && analysis.keyIssues.length > 0 && (
+          <div style={{ marginBottom: 48, padding: '16px 20px', borderRadius: 12, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+            <div style={{ fontSize: 11, color: '#EF4444', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>KEY ISSUES DETECTED</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {analysis.keyIssues.map((issue, i) => (
+                <span key={i} style={{ fontSize: 13, padding: '4px 12px', borderRadius: 20, background: 'rgba(239,68,68,0.1)', color: '#FC8181' }}>{issue}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Grading services */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: 3, color: '#E8E8EC', margin: 0 }}>GRADING SERVICES</h2>
