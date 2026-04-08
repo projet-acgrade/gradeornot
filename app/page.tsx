@@ -20,10 +20,10 @@ interface CardSuggestion {
 interface Profile {
   scan_credits: number
   total_scans: number
+  username: string
 }
 
 const FREE_SCANS_LIMIT = 5
-const [welcomeToast, setWelcomeToast] = useState(false)
 const LOCAL_SCANS_KEY = 'gradeornot_free_scans'
 
 export default function Home() {
@@ -34,11 +34,21 @@ export default function Home() {
   const [user, setUser] = useState<SupabaseUser | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [freeScansUsed, setFreeScansUsed] = useState(0)
+  const [welcomeToast, setWelcomeToast] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
-    const used = typeof window !== "undefined" ? parseInt(localStorage.getItem(LOCAL_SCANS_KEY) || "0") : 0
-    setFreeScansUsed(used)
+    if (typeof window !== 'undefined') {
+      const used = parseInt(localStorage.getItem(LOCAL_SCANS_KEY) || '0')
+      setFreeScansUsed(used)
+
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('welcome') === 'true') {
+        setWelcomeToast(true)
+        window.history.replaceState({}, '', '/')
+        setTimeout(() => setWelcomeToast(false), 4000)
+      }
+    }
 
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user)
@@ -53,7 +63,7 @@ export default function Home() {
   }, [])
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('scan_credits, total_scans').eq('id', userId).single()
+    const { data } = await supabase.from('profiles').select('scan_credits, total_scans, username').eq('id', userId).single()
     if (data) setProfile(data)
   }
 
@@ -77,7 +87,6 @@ export default function Home() {
   const handleAnalyze = async (overrideCard?: CardSuggestion) => {
     if (!imageData) return
 
-    // Vérif crédits
     if (user && profile && profile.scan_credits <= 0) {
       setError('No scans left. Purchase more credits in your dashboard.')
       return
@@ -116,7 +125,6 @@ export default function Home() {
         return
       }
 
-      // Incrémente les compteurs
       if (!user) {
         const newCount = freeScansUsed + 1
         localStorage.setItem(LOCAL_SCANS_KEY, newCount.toString())
@@ -162,6 +170,31 @@ export default function Home() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#0A0A0B' }}>
+
+      {/* Welcome toast */}
+      {welcomeToast && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 1000,
+          padding: '16px 24px', borderRadius: 14,
+          background: '#111113', border: '1px solid rgba(34,197,94,0.4)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          display: 'flex', alignItems: 'center', gap: 12,
+          animation: 'slide-up 0.3s ease'
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(34,197,94,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Zap size={18} color="#22C55E" />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#E8E8EC', fontFamily: 'var(--font-body)', marginBottom: 2 }}>
+              Welcome, {profile?.username || 'Trainer'} !
+            </div>
+            <div style={{ fontSize: 12, color: '#666', fontFamily: 'var(--font-body)' }}>
+              You have {profile?.scan_credits || 5} free scans ready.
+            </div>
+          </div>
+        </div>
+      )}
+
       <nav style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '20px 32px', borderBottom: '1px solid rgba(255,255,255,0.06)'
@@ -184,6 +217,7 @@ export default function Home() {
           {user ? (
             <>
               <a href="/dashboard" style={{ fontSize: 13, color: '#888', textDecoration: 'none', fontFamily: 'var(--font-body)' }}>Dashboard</a>
+              <a href="/profile" style={{ fontSize: 13, color: '#888', textDecoration: 'none', fontFamily: 'var(--font-body)' }}>Profile</a>
               <button onClick={handleSignOut} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#888', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                 <LogOut size={13} /> Sign out
               </button>
