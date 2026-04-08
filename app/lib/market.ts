@@ -270,3 +270,32 @@ export async function getMarketDataWithEbay(cardName: string, game: string, setN
     gradeSource: ebayData.grades.psa10 ? 'eBay Sold Listings' : baseData.gradeSource,
   }
 }
+
+// Intégration eBay — priorité maximale quand disponible
+import { getEbaySoldListings } from './ebay'
+
+export async function getMarketDataWithEbay(cardName: string, game: string, setName?: string): Promise<MarketData | null> {
+  const [baseData, ebayData] = await Promise.all([
+    getMarketData(cardName, game, setName),
+    getEbaySoldListings(cardName, game, setName)
+  ])
+
+  if (!ebayData) return baseData
+  if (!baseData) return null
+
+  // eBay override — données réelles prioritaires
+  return {
+    ...baseData,
+    raw: ebayData.raw.count > 0 ? ebayData.raw : baseData.raw,
+    grades: {
+      psa7: ebayData.grades.psa7 || baseData.grades.psa7,
+      psa8: ebayData.grades.psa8 || baseData.grades.psa8,
+      psa9: ebayData.grades.psa9 || baseData.grades.psa9,
+      psa10: ebayData.grades.psa10 || baseData.grades.psa10,
+    },
+    volume: ebayData.volume,
+    trends: { days7: ebayData.trends.days7 || baseData.trends.days7, days30: baseData.trends.days30 },
+    source: ebayData.raw.count > 0 ? `eBay + ${baseData.source}` : baseData.source,
+    gradeSource: ebayData.grades.psa10 ? 'eBay Sold Listings' : baseData.gradeSource,
+  }
+}
