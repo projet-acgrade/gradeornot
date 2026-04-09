@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Clock, Package, Shield, ChevronDown, ChevronUp, Database } from 'lucide-react'
 import GradeAnalysis from '../components/GradeAnalysis'
+import ExportPDF from '../components/ExportPDF'
 import MarketDataComponent from '../components/MarketData'
 
 interface Tier {
@@ -329,6 +330,7 @@ export default function ResultsPage() {
         </div>
 
         <div style={{ marginTop: 64, textAlign: 'center' }}>
+          <ExportPDF analysis={analysis} gradingAnalysis={gradingAnalysis} imagePreview={imagePreview} />
           <button onClick={() => { sessionStorage.clear(); router.push('/') }} style={{
             padding: '16px 40px', borderRadius: 12,
             background: 'rgba(245,183,49,0.08)', border: '1px solid rgba(245,183,49,0.3)',
