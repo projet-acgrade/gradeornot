@@ -275,7 +275,7 @@ export default function PortfolioPage() {
       <div style={{ maxWidth: 1000, margin: '0 auto', padding: '40px 32px 80px' }}>
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 40 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 40 }}>
           {[
             { label: 'TOTAL CARDS', value: cards.reduce((a, c) => a + c.quantity, 0).toString(), color: '#E8E8EC' },
             { label: 'INVESTED', value: `$${totalInvested.toFixed(0)}`, color: '#E8E8EC' },

@@ -109,7 +109,7 @@ export default function DashboardPage() {
         )}
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 48 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 48 }}>
           {[
             { label: 'SCANS REMAINING', value: profile?.scan_credits || 0, color: '#F5B731', icon: <Zap size={16} color="#F5B731" /> },
             { label: 'TOTAL SCANS', value: profile?.total_scans || 0, color: '#E8E8EC', icon: <TrendingUp size={16} color="#555" /> },
@@ -129,7 +129,7 @@ export default function DashboardPage() {
 
         {/* Packs */}
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, letterSpacing: 3, color: '#E8E8EC', marginBottom: 24 }}>BUY CREDITS</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 48 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, marginBottom: 48 }}>
           {PACKS.map((pack) => (
             <div key={pack.id} style={{
               borderRadius: 16, border: `1px solid ${pack.popular ? 'rgba(245,183,49,0.4)' : 'rgba(255,255,255,0.08)'}`,
