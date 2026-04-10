@@ -1,6 +1,8 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export interface PriceAlert {
   cardName: string
@@ -25,7 +27,7 @@ export async function sendPriceAlert(alert: PriceAlert) {
   const emoji = isUp ? '📈' : '📉'
   const color = isUp ? '#22C55E' : '#EF4444'
 
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'GradeOrNot <alerts@gradeornot.vercel.app>',
     to: alert.userEmail,
     subject: `${emoji} ${alert.cardName} price ${isUp ? 'up' : 'down'} ${Math.abs(alert.changePercent)}%`,
@@ -61,7 +63,7 @@ export async function sendPriceAlert(alert: PriceAlert) {
 }
 
 export async function sendGradingOpportunity(opp: GradingOpportunity) {
-  await resend.emails.send({
+  await getResend().emails.send({
     from: 'GradeOrNot <alerts@gradeornot.vercel.app>',
     to: opp.userEmail,
     subject: `⚡ Grading opportunity: ${opp.cardName} — ${opp.estimatedROI}% ROI`,
