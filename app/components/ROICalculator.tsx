@@ -57,7 +57,7 @@ function Slider({ label, value, min, max, step, onChange, prefix = '$', suffix =
 }
 
 export default function ROICalculator({ cardName, rawValue, gradedValues, psaGrade, gradeProbabilities }: ROICalculatorProps) {
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(true)
   const [selectedService, setSelectedService] = useState<'PSA' | 'BGS' | 'CGC'>('PSA')
   const [costs, setCosts] = useState<Costs>({
     purchasePrice: rawValue,

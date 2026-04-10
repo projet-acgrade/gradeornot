@@ -293,6 +293,25 @@ export default function ResultsPage() {
           </div>
         </div>
 
+        {/* ROI Calculator — coeur de l app */}
+        {analysis.criteriaScores && (
+          <div style={{ marginBottom: 32 }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: 3, color: '#E8E8EC', marginBottom: 20 }}>ROI CALCULATOR</h2>
+            <ROICalculator
+              cardName={analysis.cardName}
+              rawValue={analysis.estimatedRawValue}
+              gradedValues={analysis.estimatedGradedValue}
+              psaGrade={analysis.estimatedPSAGrade}
+              gradeProbabilities={analysis.gradeProbabilities || {
+                psa10: Math.round((analysis.estimatedPSAGrade >= 9.5 ? 35 : analysis.estimatedPSAGrade >= 9 ? 15 : 5)),
+                psa9: Math.round((analysis.estimatedPSAGrade >= 9 ? 45 : 25)),
+                psa8: 20,
+                psa7: 15,
+              }}
+            />
+          </div>
+        )}
+
         {/* Visual Grade Analysis */}
         {analysis.criteriaScores && (
           <div style={{ marginBottom: 32 }}>
@@ -324,24 +343,6 @@ export default function ResultsPage() {
           <div style={{ marginBottom: 32 }}>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: 3, color: '#E8E8EC', marginBottom: 20 }}>MARKET DATA</h2>
             <MarketDataComponent cardName={analysis.cardName} game={analysis.game} setName={analysis.setName} />
-          </div>
-        )}
-
-        {/* ROI Calculator */}
-        {analysis.criteriaScores && (
-          <div style={{ marginBottom: 32 }}>
-            <ROICalculator
-              cardName={analysis.cardName}
-              rawValue={analysis.estimatedRawValue}
-              gradedValues={analysis.estimatedGradedValue}
-              psaGrade={analysis.estimatedPSAGrade}
-              gradeProbabilities={{
-                psa10: Math.round((analysis.estimatedPSAGrade >= 9.5 ? 40 : analysis.estimatedPSAGrade >= 9 ? 20 : 5) * analysis.gradeConfidence / 100),
-                psa9: Math.round((analysis.estimatedPSAGrade >= 8.5 ? 40 : 25) * analysis.gradeConfidence / 100),
-                psa8: 20,
-                psa7: 15,
-              }}
-            />
           </div>
         )}
 
