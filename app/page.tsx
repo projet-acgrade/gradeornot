@@ -235,11 +235,6 @@ export default function Home() {
             )}
           </div>
 
-          {!user && (
-            <button onClick={() => router.push('/login')} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, background: 'rgba(245,183,49,0.1)', border: '1px solid rgba(245,183,49,0.3)', color: '#F5B731', fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)', fontWeight: 500 }}>
-              <User size={13} /> Sign in
-            </button>
-          )}
           {/* Mobile hamburger */}
           <button className="mobile-menu-btn" onClick={() => setMenuOpen(!menuOpen)} style={{
             display: 'none', flexDirection: 'column', gap: 4, background: 'none',
