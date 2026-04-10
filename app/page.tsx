@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Zap, TrendingUp, Shield, ChevronRight, Camera, LogOut, User } from 'lucide-react'
 import CardScanner from './components/CardScanner'
 import CardSuggestions from './components/CardSuggestions'
+import AnalyzingLoader from './components/AnalyzingLoader'
 import { supabase } from './lib/supabase'
 import type { User as SupabaseUser } from '@supabase/supabase-js'
 
@@ -305,18 +306,7 @@ export default function Home() {
           </button>
         )}
 
-        {uploading && (
-          <div style={{ marginTop: 16, padding: '20px', borderRadius: 14, background: '#111113', border: '1px solid rgba(245,183,49,0.2)', display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
-              <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid transparent', borderTopColor: '#F5B731', animation: 'spin 1s linear infinite' }} />
-              <Zap size={16} color="#F5B731" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
-            </div>
-            <div>
-              <p style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: '#F5B731', margin: '0 0 2px', letterSpacing: 1 }}>ANALYZING CARD</p>
-              <p style={{ fontSize: 12, color: '#666', margin: 0 }}>Identifying · Checking condition · Fetching prices...</p>
-            </div>
-          </div>
-        )}
+        {uploading && <AnalyzingLoader />}
 
         {suggestions.length > 0 && (
           <CardSuggestions suggestions={suggestions} onSelect={handleSelectSuggestion} onManualSearch={handleManualSearch} />
