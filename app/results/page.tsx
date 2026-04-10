@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Clock, Package, Shield, ChevronDown, ChevronUp, Database } from 'lucide-react'
+import { ArrowLeft, TrendingUp, TrendingDown, Minus, ExternalLink, Clock, Package, Shield, ChevronDown, ChevronUp, Database, BarChart2 } from 'lucide-react'
 import GradeAnalysis from '../components/GradeAnalysis'
 import MarketDataComponent from '../components/MarketData'
 import ExportPDF from '../components/ExportPDF'
@@ -35,19 +35,8 @@ interface Analysis {
   language: string
   version: string
   setNumber: string
-  condition: {
-    overall: string
-    centering: string
-    surfaces: string
-    corners: string
-    edges: string
-  }
-  criteriaScores: {
-    centering: number
-    surfaces: number
-    corners: number
-    edges: number
-  }
+  condition: { overall: string; centering: string; surfaces: string; corners: string; edges: string }
+  criteriaScores: { centering: number; surfaces: number; corners: number; edges: number }
   estimatedPSAGrade: number
   gradeConfidence: number
   estimatedRawValue: number
@@ -69,86 +58,70 @@ interface ResultData {
   imagePreview: string
 }
 
-const VERDICT_CONFIG = {
-  GRADE: { label: 'GRADE IT', color: '#22C55E', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)', icon: TrendingUp },
-  SKIP: { label: 'SKIP IT', color: '#EF4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', icon: TrendingDown },
-  MAYBE: { label: 'BORDERLINE', color: '#F5B731', bg: 'rgba(245,183,49,0.1)', border: 'rgba(245,183,49,0.3)', icon: Minus },
+const VERDICT = {
+  GRADE: { label: 'SEND IT', sub: 'Grading is worth it', color: '#22C55E', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.25)', icon: TrendingUp, emoji: '🟢' },
+  SKIP: { label: 'SKIP IT', sub: 'Not worth grading', color: '#EF4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', icon: TrendingDown, emoji: '🔴' },
+  MAYBE: { label: 'BORDERLINE', sub: 'Marginal ROI — your call', color: '#F5B731', bg: 'rgba(245,183,49,0.08)', border: 'rgba(245,183,49,0.25)', icon: Minus, emoji: '🟡' },
+}
+
+function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)', overflow: 'hidden', marginBottom: 12 }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', padding: '16px 20px', background: open ? 'rgba(255,255,255,0.03)' : '#111113',
+        border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer'
+      }}>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 14, letterSpacing: 2, color: open ? '#E8E8EC' : '#666' }}>{title}</span>
+        {open ? <ChevronUp size={14} color="#555" /> : <ChevronDown size={14} color="#555" />}
+      </button>
+      {open && <div style={{ background: '#0D0D0F', padding: '20px' }}>{children}</div>}
+    </div>
+  )
 }
 
 function ServiceCard({ service }: { service: GradingService }) {
-  const [expanded, setExpanded] = useState(false)
   const best = service.bestTier
   return (
-    <div style={{ borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)', background: '#111113', overflow: 'hidden' }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+    <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', background: '#111113', overflow: 'hidden' }}>
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: 2, color: '#E8E8EC' }}>{service.logo}</div>
-            <div style={{ fontSize: 11, color: '#666' }}>{service.name}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, letterSpacing: 2, color: '#E8E8EC' }}>{service.logo}</div>
+            <div style={{ fontSize: 11, color: '#555' }}>{service.name}</div>
           </div>
-          <a href={service.url} target="_blank" rel="noopener noreferrer" style={{ color: '#F5B731', opacity: 0.7 }}>
-            <ExternalLink size={14} />
+          <a href={service.url} target="_blank" rel="noopener noreferrer" style={{ color: '#F5B731', opacity: 0.6 }}>
+            <ExternalLink size={13} />
           </a>
         </div>
-        <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(245,183,49,0.06)', border: '1px solid rgba(245,183,49,0.15)' }}>
-          <div style={{ fontSize: 10, color: '#F5B731', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>RECOMMENDED TIER</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(245,183,49,0.05)', border: '1px solid rgba(245,183,49,0.12)' }}>
+          <div style={{ fontSize: 9, color: '#F5B731', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 6 }}>BEST TIER</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#E8E8EC', marginBottom: 2 }}>{best.name}</div>
-              <div style={{ display: 'flex', gap: 10, fontSize: 11, color: '#888' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={10} /> {best.turnaround}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Package size={10} /> +${best.shippingTotal}</span>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#E8E8EC', marginBottom: 2 }}>{best.name}</div>
+              <div style={{ display: 'flex', gap: 8, fontSize: 11, color: '#666' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Clock size={9} /> {best.turnaround}</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><Package size={9} /> +${best.shippingTotal}</span>
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 20, fontFamily: 'var(--font-mono)', color: best.worthIt ? '#22C55E' : '#F5B731', fontWeight: 700 }}>${best.cost}</div>
-              <div style={{ fontSize: 10, color: '#666' }}>grading fee</div>
+              <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: best.worthIt ? '#22C55E' : '#F5B731', fontWeight: 700 }}>${best.cost}</div>
             </div>
           </div>
         </div>
       </div>
-      <div style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+      <div style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         {[
-          { label: 'TOTAL COST', value: `$${best.cost + best.shippingTotal}`, color: undefined },
-          { label: 'GRADED VALUE', value: `$${best.gradedValue}`, color: undefined },
-          { label: 'NET PROFIT', value: `${best.profit >= 0 ? '+' : ''}$${best.profit}`, color: best.profit > 0 ? '#22C55E' : '#EF4444' },
+          { label: 'COST', value: `$${best.cost + best.shippingTotal}` },
+          { label: 'VALUE', value: `$${best.gradedValue}` },
+          { label: 'PROFIT', value: `${best.profit >= 0 ? '+' : ''}$${best.profit}`, color: best.profit > 0 ? '#22C55E' : '#EF4444' },
         ].map((s, i) => (
-          <div key={i} style={{ textAlign: 'center', padding: '10px 6px', borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
-            <div style={{ fontSize: 9, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 0.5, marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: s.color || '#E8E8EC', fontWeight: 700 }}>{s.value}</div>
+          <div key={i} style={{ textAlign: 'center', padding: '8px', borderRadius: 6, background: 'rgba(255,255,255,0.03)' }}>
+            <div style={{ fontSize: 9, color: '#444', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{s.label}</div>
+            <div style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: s.color || '#E8E8EC', fontWeight: 700 }}>{s.value}</div>
           </div>
         ))}
       </div>
-      <button onClick={() => setExpanded(!expanded)} style={{
-        width: '100%', padding: '10px', background: 'rgba(255,255,255,0.03)',
-        border: 'none', borderTop: '1px solid rgba(255,255,255,0.06)',
-        color: '#666', fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-body)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
-      }}>
-        {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-        {expanded ? 'Hide' : 'Show all'} tiers
-      </button>
-      {expanded && (
-        <div style={{ padding: '0 20px 16px' }}>
-          {service.tiers.map((tier, i) => (
-            <div key={i} style={{
-              padding: '10px 0', borderBottom: i < service.tiers.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-            }}>
-              <div>
-                <div style={{ fontSize: 13, color: '#E8E8EC', fontWeight: 500 }}>{tier.name}</div>
-                <div style={{ fontSize: 11, color: '#555' }}>{tier.turnaround}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 14, fontFamily: 'var(--font-mono)', color: '#E8E8EC' }}>${tier.cost}</div>
-                <div style={{ fontSize: 11, color: tier.worthIt ? '#22C55E' : '#EF4444' }}>
-                  {tier.profit >= 0 ? '+' : ''}${tier.profit} profit
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -170,147 +143,162 @@ export default function ResultsPage() {
   )
 
   const { analysis, gradingAnalysis, imagePreview } = data
-  const verdict = VERDICT_CONFIG[analysis.gradingRecommendation]
-  const VerdictIcon = verdict.icon
+  const v = VERDICT[analysis.gradingRecommendation]
+  const VIcon = v.icon
   const displayImage = analysis.cardImage || imagePreview
+
+  // Calcul ROI rapide pour le hero
+  const bestService = Object.values(gradingAnalysis)[0]
+  const best = bestService?.bestTier
+  const quickROI = best ? best.roi : 0
+  const quickProfit = best ? best.profit : 0
+  const breakEven = best ? Math.round((best.cost + best.shippingTotal + analysis.estimatedRawValue) / (1 - 0.1325)) : 0
 
   return (
     <div style={{ minHeight: '100vh', background: '#0A0A0B' }}>
       <style>{`
-        .results-grid { display: grid; grid-template-columns: 220px 1fr; gap: 24px; }
-        .values-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-        .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-        .condition-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+        .res-grid { display: grid; grid-template-columns: 180px 1fr; gap: 20px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .svc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
         @media (max-width: 640px) {
-          .results-grid { grid-template-columns: 1fr !important; }
-          .values-grid { grid-template-columns: 1fr 1fr !important; }
-          .services-grid { grid-template-columns: 1fr !important; }
-          .condition-grid { grid-template-columns: 1fr 1fr !important; }
+          .res-grid { grid-template-columns: 1fr !important; }
+          .kpi-grid { grid-template-columns: 1fr 1fr !important; }
+          .svc-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
-      <nav style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'sticky', top: 0, background: '#0A0A0B', zIndex: 50 }}>
+      {/* Nav */}
+      <nav style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', position: 'sticky', top: 0, background: '#0A0A0B', zIndex: 50 }}>
         <button onClick={() => router.push('/')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-body)' }}>
-          <ArrowLeft size={15} /> Back
+          <ArrowLeft size={14} /> Back
         </button>
-        <div style={{ height: 16, width: 1, background: 'rgba(255,255,255,0.1)' }} />
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: '#555', letterSpacing: 1 }}>ANALYSIS REPORT</span>
+        <div style={{ height: 14, width: 1, background: 'rgba(255,255,255,0.1)' }} />
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: '#555', letterSpacing: 1 }}>ANALYSIS REPORT</span>
         {analysis.realPriceFound && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
-            <Database size={10} color="#22C55E" />
-            <span style={{ fontSize: 10, color: '#22C55E', fontFamily: 'var(--font-mono)' }}>LIVE · {analysis.priceSource}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 20, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)' }}>
+            <Database size={9} color="#22C55E" />
+            <span style={{ fontSize: 9, color: '#22C55E', fontFamily: 'var(--font-mono)' }}>LIVE · {analysis.priceSource}</span>
           </div>
         )}
       </nav>
 
-      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 20px 80px' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 20px 80px' }}>
 
-        {/* Card + Info */}
-        <div className="results-grid" style={{ marginBottom: 32 }}>
-          <div>
-            <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(245,183,49,0.2)', background: '#111113', marginBottom: 12 }}>
-              <img src={displayImage} alt={analysis.cardName} style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 300 }} />
-            </div>
-            {analysis.realPriceFound && analysis.realPriceData && (
-              <div style={{ padding: '12px 14px', borderRadius: 12, background: '#111113', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <div style={{ fontSize: 9, color: '#22C55E', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>LIVE MARKET</div>
-                {[
-                  { label: 'Low', value: analysis.realPriceData.low },
-                  { label: 'Mid', value: analysis.realPriceData.mid },
-                  { label: 'Market', value: analysis.realPriceData.market },
-                  { label: 'High', value: analysis.realPriceData.high },
-                ].filter(p => p.value).map((p, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: i < 3 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                    <span style={{ fontSize: 11, color: '#555' }}>{p.label}</span>
-                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: '#E8E8EC' }}>${p.value!.toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+        {/* ═══ HERO VERDICT ═══ */}
+        <div style={{
+          padding: '28px 24px', borderRadius: 20, marginBottom: 16,
+          background: v.bg, border: `2px solid ${v.border}`,
+          display: 'flex', alignItems: 'center', gap: 20
+        }}>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: `rgba(${v.color === '#22C55E' ? '34,197,94' : v.color === '#EF4444' ? '239,68,68' : '245,183,49'},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <VIcon size={28} color={v.color} />
           </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 2, marginBottom: 4 }}>VERDICT</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(32px, 6vw, 48px)', color: v.color, letterSpacing: 4, lineHeight: 1, marginBottom: 6 }}>{v.label}</div>
+            <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>{analysis.recommendationReason}</p>
+          </div>
+        </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* ═══ 3 KPIs CLÉS ═══ */}
+        <div className="kpi-grid" style={{ marginBottom: 16 }}>
+          {[
+            { label: 'NET PROFIT', value: `${quickProfit >= 0 ? '+' : ''}$${quickProfit}`, sub: 'after all costs', color: quickProfit >= 0 ? '#22C55E' : '#EF4444', big: true },
+            { label: 'ROI', value: `${quickROI >= 0 ? '+' : ''}${quickROI}%`, sub: 'return on investment', color: quickROI >= 0 ? '#F5B731' : '#EF4444', big: true },
+            { label: 'BREAK-EVEN', value: `$${breakEven}`, sub: 'min. sale price', color: '#888', big: false },
+          ].map((k, i) => (
+            <div key={i} style={{ padding: '16px', borderRadius: 14, background: '#111113', border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
+              <div style={{ fontSize: 9, color: '#444', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>{k.label}</div>
+              <div style={{ fontSize: k.big ? 28 : 22, fontFamily: 'var(--font-mono)', color: k.color, fontWeight: 700, marginBottom: 4 }}>{k.value}</div>
+              <div style={{ fontSize: 10, color: '#444', fontFamily: 'var(--font-body)' }}>{k.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ═══ CARD + INFO ═══ */}
+        <div className="res-grid" style={{ marginBottom: 16 }}>
+          <div>
+            <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(245,183,49,0.15)', background: '#111113' }}>
+              <img src={displayImage} alt={analysis.cardName} style={{ width: '100%', display: 'block', objectFit: 'contain', maxHeight: 260 }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <div style={{ fontSize: 11, color: '#F5B731', fontFamily: 'var(--font-mono)', letterSpacing: 2, marginBottom: 6 }}>
+              <div style={{ fontSize: 10, color: '#F5B731', fontFamily: 'var(--font-mono)', letterSpacing: 2, marginBottom: 4 }}>
                 {analysis.game.toUpperCase()} · {analysis.rarity}
               </div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 5vw, 40px)', letterSpacing: 2, color: '#E8E8EC', margin: '0 0 4px', lineHeight: 1 }}>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(22px, 4vw, 32px)', letterSpacing: 2, color: '#E8E8EC', margin: '0 0 4px', lineHeight: 1 }}>
                 {analysis.cardName}
               </h1>
-              <div style={{ fontSize: 13, color: '#666' }}>
+              <div style={{ fontSize: 12, color: '#555' }}>
                 {[analysis.setName, analysis.setNumber, analysis.year, analysis.version, analysis.language].filter(Boolean).join(' · ')}
               </div>
             </div>
 
-            {/* Grade */}
-            <div style={{ padding: '16px', borderRadius: 14, background: '#111113', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            {/* PSA Grade */}
+            <div style={{ padding: '14px', borderRadius: 12, background: '#111113', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div>
-                  <div style={{ fontSize: 10, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>EST. PSA GRADE</div>
-                  <div style={{ fontSize: 42, fontFamily: 'var(--font-mono)', color: analysis.estimatedPSAGrade >= 9 ? '#22C55E' : '#F5B731', lineHeight: 1, fontWeight: 700 }}>
+                  <div style={{ fontSize: 9, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 2 }}>EST. PSA GRADE</div>
+                  <div style={{ fontSize: 40, fontFamily: 'var(--font-mono)', color: analysis.estimatedPSAGrade >= 9 ? '#22C55E' : '#F5B731', lineHeight: 1, fontWeight: 700 }}>
                     {analysis.estimatedPSAGrade}
                   </div>
                 </div>
-
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 9, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>RAW VALUE</div>
+                  <div style={{ fontSize: 22, fontFamily: 'var(--font-mono)', color: '#E8E8EC', fontWeight: 700 }}>${analysis.estimatedRawValue}</div>
+                </div>
               </div>
-              <div style={{ height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ width: `${(analysis.estimatedPSAGrade / 10) * 100}%`, height: '100%', background: analysis.estimatedPSAGrade >= 9 ? '#22C55E' : '#F5B731', borderRadius: 3 }} />
+              <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2 }}>
+                <div style={{ width: `${(analysis.estimatedPSAGrade / 10) * 100}%`, height: '100%', background: analysis.estimatedPSAGrade >= 9 ? '#22C55E' : '#F5B731', borderRadius: 2 }} />
               </div>
             </div>
 
-            {/* Values */}
-            <div className="values-grid">
+            {/* Graded values */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               {[
-                { label: analysis.realPriceFound ? 'MARKET PRICE' : 'RAW VALUE', value: `$${analysis.estimatedRawValue}`, highlight: analysis.realPriceFound },
-                { label: 'PSA 10 EST.', value: `$${analysis.estimatedGradedValue.PSA10}`, highlight: false },
-                { label: 'PSA 9 EST.', value: `$${analysis.estimatedGradedValue.PSA9}`, highlight: false },
+                { label: 'PSA 10', value: `$${analysis.estimatedGradedValue.PSA10}` },
+                { label: 'PSA 9', value: `$${analysis.estimatedGradedValue.PSA9}` },
+                { label: 'PSA 8', value: `$${analysis.estimatedGradedValue.PSA8}` },
               ].map((v, i) => (
-                <div key={i} style={{ padding: '12px', borderRadius: 10, textAlign: 'center', background: '#111113', border: v.highlight ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ fontSize: 9, color: v.highlight ? '#22C55E' : '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>{v.label}</div>
-                  <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: '#E8E8EC', fontWeight: 700 }}>{v.value}</div>
+                <div key={i} style={{ padding: '10px', borderRadius: 10, textAlign: 'center', background: '#111113', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 9, color: '#444', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{v.label}</div>
+                  <div style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: '#E8E8EC', fontWeight: 700 }}>{v.value}</div>
                 </div>
               ))}
-            </div>
-
-            {/* Verdict */}
-            <div style={{ padding: '20px', borderRadius: 14, background: verdict.bg, border: `2px solid ${verdict.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: `rgba(${verdict.color === '#22C55E' ? '34,197,94' : verdict.color === '#EF4444' ? '239,68,68' : '245,183,49'},0.15)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <VerdictIcon size={18} color={verdict.color} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, color: '#666', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 2 }}>VERDICT</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: verdict.color, letterSpacing: 3 }}>{verdict.label}</div>
-                </div>
-              </div>
-              <p style={{ fontSize: 13, color: '#B0B0B8', margin: 0, lineHeight: 1.5 }}>{analysis.recommendationReason}</p>
             </div>
           </div>
         </div>
 
-        {/* ROI Calculator — coeur de l app */}
-        {analysis.criteriaScores && (
-          <div style={{ marginBottom: 32 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: 3, color: '#E8E8EC', marginBottom: 20 }}>ROI CALCULATOR</h2>
+        {/* ═══ SECTIONS EN ACCORDÉON ═══ */}
+
+        <Section title="ROI CALCULATOR" defaultOpen={true}>
+          {analysis.criteriaScores && (
             <ROICalculator
               cardName={analysis.cardName}
               rawValue={analysis.estimatedRawValue}
               gradedValues={analysis.estimatedGradedValue}
               psaGrade={analysis.estimatedPSAGrade}
               gradeProbabilities={analysis.gradeProbabilities || {
-                psa10: Math.round((analysis.estimatedPSAGrade >= 9.5 ? 35 : analysis.estimatedPSAGrade >= 9 ? 15 : 5)),
-                psa9: Math.round((analysis.estimatedPSAGrade >= 9 ? 45 : 25)),
+                psa10: Math.round(analysis.estimatedPSAGrade >= 9.5 ? 35 : analysis.estimatedPSAGrade >= 9 ? 15 : 5),
+                psa9: Math.round(analysis.estimatedPSAGrade >= 9 ? 45 : 25),
                 psa8: 20,
                 psa7: 15,
               }}
             />
-          </div>
-        )}
+          )}
+        </Section>
 
-        {/* Visual Grade Analysis */}
-        {analysis.criteriaScores && (
-          <div style={{ marginBottom: 32 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: 3, color: '#E8E8EC', marginBottom: 20 }}>VISUAL GRADE ANALYSIS</h2>
+        <Section title="GRADING SERVICES">
+          <div className="svc-grid">
+            {Object.values(gradingAnalysis).map(service => (
+              <ServiceCard key={service.name} service={service} />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="VISUAL GRADE ANALYSIS">
+          {analysis.criteriaScores && (
             <GradeAnalysis
               criteria={analysis.criteriaScores}
               psaGrade={analysis.estimatedPSAGrade}
@@ -318,60 +306,37 @@ export default function ResultsPage() {
               gradeProbabilities={analysis.gradeProbabilities}
               psaPopulation={analysis.psaPopulation}
             />
-          </div>
-        )}
-
-        {/* Key issues */}
-        {analysis.keyIssues && analysis.keyIssues.length > 0 && (
-          <div style={{ marginBottom: 32, padding: '14px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
-            <div style={{ fontSize: 10, color: '#EF4444', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>KEY ISSUES DETECTED</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {analysis.keyIssues.map((issue, i) => (
-                <span key={i} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: 'rgba(239,68,68,0.1)', color: '#FC8181' }}>{issue}</span>
-              ))}
+          )}
+          {analysis.keyIssues && analysis.keyIssues.length > 0 && (
+            <div style={{ marginTop: 16, padding: '14px 16px', borderRadius: 12, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <div style={{ fontSize: 10, color: '#EF4444', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>KEY ISSUES DETECTED</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {analysis.keyIssues.map((issue, i) => (
+                  <span key={i} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, background: 'rgba(239,68,68,0.1)', color: '#FC8181' }}>{issue}</span>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </Section>
 
-        {/* Market Data */}
-        {analysis.cardName && (
-          <div style={{ marginBottom: 32 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: 3, color: '#E8E8EC', marginBottom: 20 }}>MARKET DATA</h2>
-            <MarketDataComponent cardName={analysis.cardName} game={analysis.game} setName={analysis.setName} />
-          </div>
-        )}
+        <Section title="MARKET DATA">
+          <MarketDataComponent cardName={analysis.cardName} game={analysis.game} setName={analysis.setName} />
+        </Section>
 
-        {/* Grading services */}
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, letterSpacing: 3, color: '#E8E8EC', margin: 0 }}>GRADING SERVICES</h2>
-            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#555', fontFamily: 'var(--font-mono)' }}>
-              <Shield size={11} /> REAL COSTS
-            </div>
-          </div>
-          <div className="services-grid">
-            {Object.values(gradingAnalysis).map((service) => (
-              <ServiceCard key={service.name} service={service} />
-            ))}
-          </div>
-        </div>
-
-        {/* Footer actions */}
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {/* Footer */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginTop: 24 }}>
           <ExportPDF analysis={analysis} gradingAnalysis={gradingAnalysis} imagePreview={imagePreview} />
           <button onClick={() => { sessionStorage.clear(); router.push('/') }} style={{
-            padding: '12px 28px', borderRadius: 12,
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#888', fontSize: 14, cursor: 'pointer', fontFamily: 'var(--font-body)'
+            padding: '11px 24px', borderRadius: 10, background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)', color: '#666', fontSize: 13,
+            cursor: 'pointer', fontFamily: 'var(--font-body)'
           }}>
             Scan another card
           </button>
         </div>
 
-        {/* Disclaimer */}
-        <p style={{ textAlign: 'center', fontSize: 11, color: '#444', marginTop: 32, lineHeight: 1.5, fontFamily: 'var(--font-body)', maxWidth: 560, margin: '32px auto 0' }}>
-          Grade probabilities are statistical estimates. No tool, expert, or grading service can guarantee a specific grade outcome. GradeOrNot provides decision support, not grading guarantees.
+        <p style={{ textAlign: 'center', fontSize: 10, color: '#333', marginTop: 24, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>
+          Grade probabilities are statistical estimates. No tool or grading service can guarantee a specific grade outcome. GradeOrNot provides decision support only.
         </p>
       </div>
     </div>
