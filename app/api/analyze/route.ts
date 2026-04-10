@@ -298,7 +298,13 @@ Be conservative with grades. Be precise with card identification.`
     }
 
     // Calcule les scores numériques par critère
-    const criteriaScores = {
+    // Utiliser les scores numériques de Claude directement si disponibles
+    const criteriaScores = analysis.criteriaScores ? {
+      centering: Number(analysis.criteriaScores.centering) || conditionToScore(analysis.condition?.centering || '', 'centering'),
+      surfaces: Number(analysis.criteriaScores.surfaces) || conditionToScore(analysis.condition?.surfaces || '', 'surfaces'),
+      corners: Number(analysis.criteriaScores.corners) || conditionToScore(analysis.condition?.corners || '', 'corners'),
+      edges: Number(analysis.criteriaScores.edges) || conditionToScore(analysis.condition?.edges || '', 'edges'),
+    } : {
       centering: conditionToScore(analysis.condition?.centering || '', 'centering'),
       surfaces: conditionToScore(analysis.condition?.surfaces || '', 'surfaces'),
       corners: conditionToScore(analysis.condition?.corners || '', 'corners'),
