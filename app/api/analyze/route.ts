@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { getCardPrice } from '../../lib/prices'
 import { getPSAPopulation, getDefaultProbabilities } from '../../lib/psa-population'
+import { runDecisionEngine } from '../../lib/decision-engine'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -370,7 +371,35 @@ Be conservative with grades. Be precise with card identification.`
       } : null,
     }
 
-    return NextResponse.json({ analysis: finalAnalysis, gradingAnalysis })
+    // Moteur de décision
+    const bestService = Object.values(gradingAnalysis)[0] as {
+      tiers: { cost: number; shippingTotal: number }[]
+      bestTier: { cost: number; shippingTotal: number }
+    }
+    const decision = runDecisionEngine({
+      psaGrade: finalAnalysis.estimatedPSAGrade,
+      rawValue: rawValue,
+      gradedValues: gradedValues,
+      gradeProbabilities: gradeProbabilities,
+      gradingCost: bestService?.bestTier?.cost || 50,
+      shippingTotal: bestService?.bestTier?.shippingTotal || 40,
+      sellingFee: 13.25,
+      criteriaScores: finalAnalysis.criteriaScores || { centering: 8, surfaces: 8, corners: 8, edges: 8 },
+      keyIssues: finalAnalysis.keyIssues || [],
+      game: finalAnalysis.game,
+      rarity: finalAnalysis.rarity,
+    })
+
+    const finalWithDecision = {
+      ...finalAnalysis,
+      gradingRecommendation: decision.verdict,
+      recommendationReason: decision.summary,
+      decisionScore: decision.score,
+      decisionConfidence: decision.confidence,
+      decisionRules: decision.rules,
+    }
+
+    return NextResponse.json({ analysis: finalWithDecision, gradingAnalysis })
 
   } catch (err: unknown) {
     console.error('Analysis error:', err)

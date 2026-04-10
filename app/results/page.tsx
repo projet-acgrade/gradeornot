@@ -6,6 +6,7 @@ import GradeAnalysis from '../components/GradeAnalysis'
 import MarketDataComponent from '../components/MarketData'
 import ExportPDF from '../components/ExportPDF'
 import ROICalculator from '../components/ROICalculator'
+import DecisionEngine from '../components/DecisionEngine'
 
 interface Tier {
   name: string
@@ -50,6 +51,9 @@ interface Analysis {
   cardImage: string | null
   gradeProbabilities?: { psa10: number; psa9: number; psa8: number; psa7: number }
   psaPopulation?: { total: number; byGrade: Record<string, number>; source: string } | null
+  decisionScore?: number
+  decisionConfidence?: number
+  decisionRules?: { id: string; label: string; passed: boolean; value: string; weight: number; detail: string }[]
 }
 
 interface ResultData {
@@ -199,6 +203,20 @@ export default function ResultsPage() {
             <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5, fontFamily: 'var(--font-body)' }}>{analysis.recommendationReason}</p>
           </div>
         </div>
+
+        {/* ═══ DECISION ENGINE ═══ */}
+        {analysis.decisionRules && analysis.decisionRules.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <Section title="WHY THIS VERDICT" defaultOpen={true}>
+              <DecisionEngine
+                score={analysis.decisionScore || 0}
+                confidence={analysis.decisionConfidence || 0}
+                rules={analysis.decisionRules}
+                verdict={analysis.gradingRecommendation}
+              />
+            </Section>
+          </div>
+        )}
 
         {/* ═══ 3 KPIs CLÉS ═══ */}
         <div className="kpi-grid" style={{ marginBottom: 16 }}>
