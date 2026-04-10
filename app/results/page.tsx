@@ -251,12 +251,7 @@ export default function ResultsPage() {
                     {analysis.estimatedPSAGrade}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 10, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 4 }}>CONFIDENCE</div>
-                  <div style={{ fontSize: 24, fontFamily: 'var(--font-mono)', color: analysis.gradeConfidence >= 80 ? '#22C55E' : '#F5B731', fontWeight: 700 }}>
-                    {analysis.gradeConfidence}%
-                  </div>
-                </div>
+
               </div>
               <div style={{ height: 5, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ width: `${(analysis.estimatedPSAGrade / 10) * 100}%`, height: '100%', background: analysis.estimatedPSAGrade >= 9 ? '#22C55E' : '#F5B731', borderRadius: 3 }} />

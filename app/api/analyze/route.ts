@@ -203,7 +203,40 @@ Respond ONLY with valid JSON:
             { type: 'image', source: { type: 'base64', media_type: mimeType, data: image } },
             {
               type: 'text',
-              text: `You are a professional TCG card grader. Analyze this card image with extreme precision.
+              text: `You are a professional TCG card grader with 20 years of PSA/BGS experience. Analyze this specific card image with extreme visual precision.
+
+STEP 1 — CENTERING (PSA weight 40%):
+Look at the card borders carefully. Measure visually the white border widths.
+10.0=perfect 55/45, 9.5=57/43, 9.0=60/40, 8.5=62/38, 8.0=65/35, 7.0=70/30, 6.0=75/25, 5.0=80/20
+Give a SPECIFIC decimal score based on what you actually see.
+
+STEP 2 — SURFACES (PSA weight 30%):
+Examine front and back for scratches, print lines, stains, creases, holo damage, yellowing.
+10.0=pristine, 9.5=one micro mark, 9.0=1-2 tiny marks, 8.5=few light marks, 8.0=light scratches, 7.0=moderate, 6.0=heavy.
+Give a SPECIFIC decimal score.
+
+STEP 3 — CORNERS (PSA weight 20%):
+Examine all 4 corners for fraying, rounding, whitening.
+10.0=razor sharp all 4, 9.5=one micro fray, 9.0=one slight fray, 8.5=two corners slight, 8.0=2-3 fraying, 7.0=rounded, 6.0=heavily worn.
+Give a SPECIFIC decimal score.
+
+STEP 4 — EDGES (PSA weight 10%):
+Examine all 4 edges for chipping, roughness, nicking.
+10.0=perfect, 9.5=one micro nick, 9.0=minor nick, 8.5=2-3 nicks, 8.0=chipping visible, 7.0=moderate chipping.
+Give a SPECIFIC decimal score.
+
+SCORING RULES:
+- Use decimals: 8.5, 7.5, 9.5 not just round numbers
+- Scores MUST differ from each other based on what you actually see
+- Most cards score 6.0-9.0, very few deserve 9.5+
+- If image is blurry/dark, reduce all scores by 0.5-1.0
+- A card with PSA grade 5 should have criteria scores averaging around 5, not 8
+
+KEY ISSUES: Only list defects you can ACTUALLY SEE with specifics:
+- "Left border ~30% wider than right (estimated 65/35 centering)"
+- "Diagonal scratch visible on front surface"
+- "Bottom-left corner shows fraying"
+Empty array [] if card looks clean. DO NOT invent issues.
 
 If high confidence, respond FORMAT A. If ambiguous, respond FORMAT B.
 
