@@ -209,8 +209,6 @@ export default function ResultsPage() {
           <div style={{ marginBottom: 16 }}>
             <Section title="WHY THIS VERDICT" defaultOpen={true}>
               <DecisionEngine
-                score={analysis.decisionScore || 0}
-                confidence={analysis.decisionConfidence || 0}
                 rules={analysis.decisionRules}
                 verdict={analysis.gradingRecommendation}
               />

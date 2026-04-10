@@ -11,35 +11,15 @@ interface DecisionRule {
 }
 
 interface DecisionEngineProps {
-  score: number
-  confidence: number
   rules: DecisionRule[]
   verdict: 'GRADE' | 'SKIP' | 'MAYBE'
 }
 
-export default function DecisionEngine({ score, confidence, rules, verdict }: DecisionEngineProps) {
+export default function DecisionEngine({ rules, verdict }: DecisionEngineProps) {
   const verdictColor = verdict === 'GRADE' ? '#22C55E' : verdict === 'SKIP' ? '#EF4444' : '#F5B731'
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-      {/* Score global */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ padding: '16px', borderRadius: 12, background: '#111113', border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
-          <div style={{ fontSize: 9, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>DECISION SCORE</div>
-          <div style={{ fontSize: 32, fontFamily: 'var(--font-mono)', color: verdictColor, fontWeight: 700, marginBottom: 6 }}>{score}/100</div>
-          <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ width: `${score}%`, height: '100%', background: verdictColor, borderRadius: 2, transition: 'width 1s ease' }} />
-          </div>
-        </div>
-        <div style={{ padding: '16px', borderRadius: 12, background: '#111113', border: '1px solid rgba(255,255,255,0.07)', textAlign: 'center' }}>
-          <div style={{ fontSize: 9, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1, marginBottom: 8 }}>ANALYSIS CONFIDENCE</div>
-          <div style={{ fontSize: 32, fontFamily: 'var(--font-mono)', color: confidence >= 75 ? '#22C55E' : '#F5B731', fontWeight: 700, marginBottom: 6 }}>{confidence}%</div>
-          <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-            <div style={{ width: `${confidence}%`, height: '100%', background: confidence >= 75 ? '#22C55E' : '#F5B731', borderRadius: 2 }} />
-          </div>
-        </div>
-      </div>
 
       {/* Règles */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
