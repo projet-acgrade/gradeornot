@@ -87,32 +87,8 @@ export default function GradeAnalysis({ criteria, psaGrade, confidence, gradePro
     { grade: 'PSA 7 or less', probability: Math.round(psaGrade >= 9 ? 10 : 35), label: 'Near Mint or lower' },
   ]
 
-  const confidenceColor = confidence >= 80 ? '#22C55E' : confidence >= 60 ? '#F5B731' : '#EF4444'
-  const confidenceLabel = confidence >= 80 ? 'HIGH' : confidence >= 60 ? 'MEDIUM' : 'LOW'
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-      {/* Scan confidence */}
-      <div style={{ padding: '16px 20px', borderRadius: 14, background: '#111113', border: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontSize: 11, color: '#555', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>SCAN CONFIDENCE</div>
-          <div style={{ padding: '4px 10px', borderRadius: 20, background: `rgba(${confidenceColor === '#22C55E' ? '34,197,94' : confidenceColor === '#F5B731' ? '245,183,49' : '239,68,68'},0.1)`, border: `1px solid rgba(${confidenceColor === '#22C55E' ? '34,197,94' : confidenceColor === '#F5B731' ? '245,183,49' : '239,68,68'},0.3)` }}>
-            <span style={{ fontSize: 11, color: confidenceColor, fontFamily: 'var(--font-mono)' }}>{confidenceLabel}</span>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ flex: 1, height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${confidence}%`, background: confidenceColor, borderRadius: 4, transition: 'width 0.8s ease' }} />
-          </div>
-          <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: confidenceColor, fontWeight: 700, minWidth: 40 }}>{confidence}%</span>
-        </div>
-        {confidence < 70 && (
-          <p style={{ fontSize: 12, color: '#666', marginTop: 10, fontFamily: 'var(--font-body)', lineHeight: 1.4 }}>
-            Low confidence — try a closer, better-lit photo for more accurate results.
-          </p>
-        )}
-      </div>
 
       {/* Criteria scores */}
       <div style={{ padding: '20px', borderRadius: 14, background: '#111113', border: '1px solid rgba(255,255,255,0.08)' }}>
